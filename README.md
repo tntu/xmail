@@ -1,0 +1,4 @@
+xmail
+=====
+
+Email sending class
