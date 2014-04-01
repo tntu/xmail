@@ -98,13 +98,13 @@ License: CC BY-NC-SA
       $message .= "--".$boundary2."\r\n";
       $message .= "Content-Type: text/html;\r\n      charset=\"UTF-8\"\r\n";
       $message .= "Content-Transfer-Encoding: quoted-printable\r\n\r\n";
-      $message .= "<!DOCTYPE HTML PUBLIC \"-//W3C//DTD HTML 4.0 Transitional//EN\">\r\n";
-      $message .= "<html>\r\n";
-      $message .= "<body>\r\n";
-      $message .= str_replace("
-", "<br/>", $html) . "<br/>\r\n";
-      $message .= "</body>\r\n";
-      $message .= "</html>\r\n\r\n";
+      $encoded  = "<!DOCTYPE HTML PUBLIC \"-//W3C//DTD HTML 4.0 Transitional//EN\">\r\n";
+      $encoded .= "<html>\r\n";
+      $encoded .= "<body>\r\n";
+      $encoded .= $html . "\r\n";
+      $encoded .= "</body>\r\n";
+      $encoded .= "</html>\r\n\r\n";
+      $message .= quoted_printable_encode($encoded);
       $message .= "--".$boundary2."--\r\n\r\n";
 
       if(is_array($attachments)) {
