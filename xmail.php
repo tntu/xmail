@@ -26,23 +26,23 @@ License: CC BY-NC-SA
 
   class Xmail{
 
-    # LOG VAR
+    // LOG VAR
     public $log = Array();
 
-    # NEW LINE
+    // NEW LINE
     private $line = "\r\n";
 
-    # ATTACHED FILES
+    // ATTACHED FILES
     public $files = Array();
 
-    # CONFIG GENERAL
+    // CONFIG GENERAL
     private $tpl = "";
     private $mode = "mail";
 
     function setTPL($value) { if($value != "") $this->tpl = $value; }
     function setMODE($value) { if($value != "") $this->mode = $value; }
 
-    # CONFIG SMTP
+    // CONFIG SMTP
     private $smtp_host = "localhost";
     private $smtp_port = "25";
     private $smtp_username = "";
@@ -53,7 +53,7 @@ License: CC BY-NC-SA
     function setSmtpUser($value) { if($value != "") $this->smtp_username = $value; }
     function setSmtpPass($value) { if($value != "") $this->smtp_password = $value; }
 
-    # CONFIG SOCKET
+    // CONFIG SOCKET
     private $from = "xmail@localhost"; // sender email address
     private $host = "localhost"; // your domain name here
     private $port = "25"; // it is always 25 but i think it's best to have this for tests when developper pc has port 25 blocked and server has alternate port [i use 26 cause 25 is locked for anti SPAM by ISP]
@@ -66,14 +66,14 @@ License: CC BY-NC-SA
     function setTime($value) { if($value != "") $this->time = $value; }
     function setTest($value) { if($value != "") $this->test = $value; }
 
-    # MAIN FUNCTION
+    // MAIN FUNCTION
     function mail($to, $subject, $msg, $headers, $attachments = NULL) {
 
-      # MESSAGE HTML
+      // MESSAGE HTML
       $msg = str_replace("\'","'",$msg);
       $msg = str_replace('\"','"',$msg);
 
-      # Use template if case
+      // Use template if case
       if(is_file($this->tpl)){
         $html = implode("", file($this->tpl));
         $html = str_replace("{MESSAGE}", $msg, $html);
@@ -87,14 +87,14 @@ License: CC BY-NC-SA
       $message .= "--".$boundary1."\r\n";
       $message .= "Content-Type: multipart/alternative;\r\n      boundary=\"$boundary2\"\r\n\r\n";
 
-      # MESSAGE TEXT
+      // MESSAGE TEXT
       $message .= "--".$boundary2."\r\n";
       $message .= "Content-Type: text/plain;\r\n      charset=\"UTF-8\"\r\n";
       $message .= "Content-Transfer-Encoding: 7bit\r\n";
       $message .= strip_tags($msg) . "\r\n";
       $message .= "\r\n\r\n";
 
-      # MESSAGE HTML
+      // MESSAGE HTML
       $message .= "--".$boundary2."\r\n";
       $message .= "Content-Type: text/html;\r\n      charset=\"UTF-8\"\r\n";
       $message .= "Content-Transfer-Encoding: quoted-printable\r\n\r\n";
@@ -113,7 +113,7 @@ License: CC BY-NC-SA
             $file_name = pathinfo($file_url, PATHINFO_BASENAME);
             $file_type = $this->find_mime(pathinfo($file_url, PATHINFO_EXTENSION));
 
-            # ATTACHMENT
+            // ATTACHMENT
             $message .= "--".$boundary1."\r\n";
             $message .= "Content-Type: ".$file_type.";\r\n      name=\"$file_name\"\r\n";
             $message .= "Content-Transfer-Encoding: base64\r\n";
@@ -147,29 +147,29 @@ License: CC BY-NC-SA
       }
     }
 
-    # send mail directly to destination MX server
-    function sokmail($to, $subject, $message, $headers) {
+    // send mail directly to destination MX server
+    private function sokmail($to, $subject, $message, $headers) {
       // get server based on mode
       if($this->mode == "mx") {
         list($user, $domain) = split("@",$to);
-        getmxrr($domain, $mxhosts);
-        $server = $mxhosts['0'];
-      }else{
-        $server = $this->smtp_host;
+        $mxips = get_rand_mx_ip($domain);
+        $server = $mxips['A'][0];
       }
+      else
+       $server = $this->smtp_host;
 
-      # open socket
+      // open socket
       $socket = @fsockopen($server, $this->port, $errno, $errstr, $this->time);
       if(empty($socket)) { return false; }
       if($this->parse_response($socket, 220, "SOCKET") != 220) { fclose($socket); return false; }
 
-      # say HELO to our little friend
+      // say HELO to our little friend
       fputs($socket, "EHLO " . $this->host . $this->line);
       if($this->parse_response($socket, 250, "HELO") != 250) { fclose($socket); return false; }
 
-      # if SMTP
+      // if SMTP
       if($this->mode == "smtp" && !empty($this->smtp_username) && !empty($this->smtp_password) ) {
-        # start login
+        // start login
         fputs($socket, "AUTH LOGIN" . $this->line);
         if($this->parse_response($socket, 334, "AUTH LOGIN") != 334) { fclose($socket); return false; }
 
@@ -180,31 +180,31 @@ License: CC BY-NC-SA
         if($this->parse_response($socket, 235, "PASSWORD") != 235) { fclose($socket); return false; }
       }
 
-      # email from
+      // email from
       fputs($socket, "MAIL FROM: <" . $this->from . ">" . $this->line);
       if($this->parse_response($socket, 250, "MAIL FROM") != 250) { fclose($socket); return false; }
 
-      # email to
+      // email to
       fputs($socket, "RCPT TO: <" . $to . ">" . $this->line);
       if($this->parse_response($socket, 250, "RCPT TO") != 250) { fclose($socket); return false; }
 
-      # check for test mode
+      // check for test mode
       if($this->test != true) {
 
-        # send data start command
+        // send data start command
         fputs($socket, "DATA" . $this->line);
         if($this->parse_response($socket, 354, "DATA") != 354) { fclose($socket); return false; }
 
-        # make the deposit :)
+        // make the deposit :)
         fputs($socket, "Subject: " . $subject . $this->line);
         fputs($socket, "To: " . $to . $this->line);
         fputs($socket, $headers . $this->line);
         fputs($socket, $message . $this->line);
-        fputs($socket, "." . $this->line); # this line sends a dot to mark the end of message
+        fputs($socket, "." . $this->line); // this line sends a dot to mark the end of message
         if($this->parse_response($socket, 250, ".") != 250) { fclose($socket); return false; }
       }
 
-      # say goodbye
+      // say goodbye
       fputs($socket,"QUIT" . $this->line);
       $this->parse_response($socket, 221, "QUIT");
       fclose($socket);
@@ -212,40 +212,91 @@ License: CC BY-NC-SA
       return true;
     }
 
-    # parse server responces for above function
-    function parse_response($socket, $expected, $cmd) {
+    // parse server responces for above function
+    private function parse_response($socket, $expected, $cmd) {
       $response = '';
       $this->log[$cmd] = "";
       while (substr($response, 3, 1) != ' ') {
         if(!($response = fgets($socket, 256))) $this->log["ERROR RESPONSE"] = "Couldn't get mail server response codes.";
         else $this->log[$cmd] .= $response;
-        # for security we break the loop after 10 cause this should not happen ever
+        // for security we break the loop after 10 cause this should not happen ever
         $i++;
         if($i == 10) return false;
       }
 
-      # shows an error if expected code not received
+      // shows an error if expected code not received
       if(substr($response, 0, 3) != $expected) $this->log["ERROR CODES"] = "Ran into problems sending Mail. Received: " . substr($response, 0, 3) . ".. but expected: " . $expected;
 
-      # access denied..quit
+      // access denied..quit
       if(substr($response, 0, 3) == 451) $this->log["ERROR QUIT"] = "Server declined access. Quitting.";
 
       return substr($response, 0, 3);
     }
 
-    function find_mime($ext) {
-      # create mimetypes array
+    // get mx records and their IPs and randomize based on priority
+    private function get_rand_mx($d) {
+      getmxrr($d, $h, $w);
+      
+      if(!$h) {
+        $h = Array($d);
+        $w = Array(0);
+      }
+
+      $i = Array();
+      $m = Array();
+      foreach($h AS $k => $v) {
+        if(empty($m[$w[$k]]))
+         $m[$w[$k]] = Array();
+
+        $m[$w[$k]][] = $v;
+        $i[$v]['A'] = dns_get_record($v, DNS_A);
+        $i[$v]['AAAA'] = dns_get_record($v, DNS_AAAA);
+      }
+      ksort($m);
+      foreach($m AS $k => $v) {
+        shuffle($m[$k]);
+      }
+      foreach($i AS $k => $v) {
+        shuffle($i[$k]['A']);
+        shuffle($i[$k]['AAAA']);
+      }
+      return Array('mx' => $m, 'ip' => $i);
+    }
+
+    // prepare IPs as a simpel list
+    private function get_rand_mx_ip($d) {
+      $a = get_rand_mx($d);
+
+      $r = Array('A' => Array(), 'AAAA' => Array());
+      foreach($a['mx'] AS $m) {
+        foreach($m AS $n) {
+          foreach($a['ip'][$n]['A'] AS $i) {
+            $r['A'][] = $i['ip'];
+          }
+          foreach($a['ip'][$n]['AAAA'] AS $i) {
+            $r['AAAA'][] = $i['ipv6'];
+          }
+        }
+      }
+      return $r;
+    }
+
+    // get mime type for extension
+    private function find_mime($ext) {
+      // create mimetypes array
       $mimetypes = $this->mime_array();
 
-      # return mime type for extension
+      // return mime type for extension
       if (isset($mimetypes[$ext])) {
         return $mimetypes[$ext];
-      # if the extension wasn't found return octet-stream
+      // if the extension wasn't found return octet-stream
       } else {
         return 'application/octet-stream';
       }
     }
-    function mime_array() {
+
+    // known mime types cause PHP might not have support
+    private function mime_array() {
       return array(
         "ez" => "application/andrew-inset",
         "hqx" => "application/mac-binhex40",
@@ -387,7 +438,7 @@ License: CC BY-NC-SA
   }
 
 
-  # PHP does not have getmxr function on windows so I built one
+  // PHP does not have getmxr function on windows so I built one
   function win_getmxrr($hostname, &$mxhosts, &$mxweight=false) {
     if (strtoupper(substr(PHP_OS, 0, 3)) != 'WIN') return;
     if (!is_array ($mxhosts) ) $mxhosts = array();
@@ -409,7 +460,6 @@ License: CC BY-NC-SA
     }
     return ($i!=-1);
   }
-
   if (!function_exists('getmxrr')) {
     function getmxrr($hostname, &$mxhosts, &$mxweight=false) {
       return win_getmxrr($hostname, $mxhosts, $mxweight);
@@ -417,7 +467,7 @@ License: CC BY-NC-SA
   }
 
 
-  # Handler function
+  // Handler function
   function xmail($to, $subject, $message, $headers="", $attachments=""){
     $xmail = new Xmail();
     $xmail->setTest(true); // ( true / false ) test without sending email see output
