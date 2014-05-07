@@ -152,7 +152,7 @@ License: CC BY-NC-SA
       // get server based on mode
       if($this->mode == "mx") {
         list($user, $domain) = split("@",$to);
-        $mxips = get_rand_mx_ip($domain);
+        $mxips = $this->get_rand_mx_ip($domain);
         $server = $mxips['A'][0];
       }
       else
@@ -265,7 +265,7 @@ License: CC BY-NC-SA
 
     // prepare IPs as a simpel list
     private function get_rand_mx_ip($d) {
-      $a = get_rand_mx($d);
+      $a = $this->get_rand_mx($d);
 
       $r = Array('A' => Array(), 'AAAA' => Array());
       foreach($a['mx'] AS $m) {
@@ -495,6 +495,9 @@ License: CC BY-NC-SA
 
     // send the email
     $xmail->mail($to, $subject, $message, $headers, $attachments);
+    
+    // return debug log
+    return $xmail->log;
   }
 
 ?>
