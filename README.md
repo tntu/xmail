@@ -1,4 +1,4 @@
-xmail
+Xmail
 =====
 
 Send email the right way so it does not get flagged as SPAM. 
