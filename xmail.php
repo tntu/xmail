@@ -36,78 +36,83 @@ License: CC BY-NC-SA
     public $files = Array();
 
     // CONFIG GENERAL
-    private $tpl = "";
-    private $mode = "mail";
+    private $tpl = '';
+    private $mode = 'mail';
     private $safe = true;
 
-    function setTPL($value) { if($value != "") $this->tpl = $value; }
-    function setMODE($value) { if($value != "") $this->mode = $value; }
+    function setTPL($value) { if($value != '') $this->tpl = $value; }
+    function setMODE($value) { if($value != '') $this->mode = $value; }
 
     // CONFIG SMTP
-    private $smtp_host = "localhost";
-    private $smtp_port = "25";
-    private $smtp_username = "";
-    private $smtp_password = "";
+    private $smtp_host = 'localhost';
+    private $smtp_port = 25;
+    private $smtp_username = '';
+    private $smtp_password = '';
 
-    function setSmtpHost($value) { if($value != "") $this->smtp_host = $value; }
-    function setSmtpPort($value) { if($value != "") $this->smtp_port = $value; }
-    function setSmtpUser($value) { if($value != "") $this->smtp_username = $value; }
-    function setSmtpPass($value) { if($value != "") $this->smtp_password = $value; }
+    function setSmtpHost($value) { if($value != '') $this->smtp_host = $value; }
+    function setSmtpPort($value) { if($value != '') $this->smtp_port = $value; }
+    function setSmtpUser($value) { if($value != '') $this->smtp_username = $value; }
+    function setSmtpPass($value) { if($value != '') $this->smtp_password = $value; }
 
     // CONFIG SOCKET
-    private $from = "xmail@localhost"; // sender email address
-    private $host = "localhost"; // your domain name here
-    private $port = "25"; // it is always 25 but i think it's best to have this for tests when developper pc has port 25 blocked and server has alternate port [i use 26 cause 25 is locked for anti SPAM by ISP]
-    private $time = "30"; // timeout [time short :D]
+    private $from = 'xmail@localhost'; // sender email address
+    private $host = 'localhost'; // your domain name here
+    private $port = 25; // it is always 25 but i think it's best to have this for tests when developper pc has port 25 blocked and server has alternate port [i use 26 cause 25 is locked for anti SPAM by ISP]
+    private $time = 30; // timeout [time short :D]
     private $test = false; // test mode, does not send the email but you can see the log up to the point of sending email, good to check email addresses if valid or server if black-listed
 
-    function setFrom($value) { if($value != "") $this->from = $value; }
-    function setHost($value) { if($value != "") $this->host = $value; }
-    function setPort($value) { if($value != "") $this->port = $value; }
-    function setTime($value) { if($value != "") $this->time = $value; }
-    function setTest($value) { if($value != "") $this->test = $value; }
+    function setFrom($value) { if($value != '') $this->from = $value; }
+    function setHost($value) { if($value != '') $this->host = $value; }
+    function setPort($value) { if($value != '') $this->port = $value; }
+    function setTime($value) { if($value != '') $this->time = $value; }
+    function setTest($value) { if($value != '') $this->test = $value; }
     function setSafe($value) { if($value == True) $this->safe = true; else $this->safe = false; }
 
     // MAIN FUNCTION
     function mail($to, $subject, $msg, $headers, $attachments = NULL) {
 
       // MESSAGE HTML
-      $msg = str_replace("\'","'",$msg);
-      $msg = str_replace('\"','"',$msg);
+      $msg = str_replace("\'", "'", $msg);
+      $msg = str_replace('\"', '"', $msg);
 
-      // Use template if case
+      // Use template if set or just ensure text is proper
       if(is_file($this->tpl)){
-        $html = implode("", file($this->tpl));
-        $html = str_replace("{MESSAGE}", $msg, $html);
-      }else
+        $html = implode('', file($this->tpl));
+        $html = str_replace('{MESSAGE}', $msg, $html);
+      }
+      else if(strlen($msg) != strlen(strip_tags($msg)))
        $html = $msg;
+      else
+       $html = str_replace(Array("\r\n", "\r", "\n"), Array("\n", '', '<br/>'), $msg);
 
+      // Content boundaries
       $boundary1 = '-----='.md5(uniqid(rand()));
       $boundary2 = '-----='.md5(uniqid(rand()));
 
-      $message .= "\r\nThis is a multi-part message in MIME format.\r\n\r\n";
-      $message .= "--".$boundary1."\r\n";
-      $message .= "Content-Type: multipart/alternative;\r\n      boundary=\"$boundary2\"\r\n\r\n";
+      // MESSAGE BODY
+      $message .= $this->line . 'This is a multi-part message in MIME format.' . $this->line . $this->line;
+      $message .= '--' . $boundary1 . $this->line;
+      $message .= 'Content-Type: multipart/alternative;' . $this->line . "\tboundary=\"" . $boundary2 . '"' . $this->line . $this->line;
 
       // MESSAGE TEXT
-      $message .= "--".$boundary2."\r\n";
-      $message .= "Content-Type: text/plain;\r\n      charset=\"UTF-8\"\r\n";
-      $message .= "Content-Transfer-Encoding: 7bit\r\n";
-      $message .= strip_tags($msg) . "\r\n";
-      $message .= "\r\n\r\n";
+      $message .= '--' . $boundary2 . $this->line;
+      $message .= 'Content-Type: text/plain;' . $this->line . "\tcharset=\"UTF-8\"" . $this->line;
+      $message .= 'Content-Transfer-Encoding: 7bit' . $this->line;
+      $message .= $this->make_text_plain($msg) . $this->line;
+      $message .= $this->line . $this->line;
 
       // MESSAGE HTML
-      $message .= "--".$boundary2."\r\n";
-      $message .= "Content-Type: text/html;\r\n      charset=\"UTF-8\"\r\n";
-      $message .= "Content-Transfer-Encoding: quoted-printable\r\n\r\n";
-      $encoded  = "<!DOCTYPE HTML PUBLIC \"-//W3C//DTD HTML 4.0 Transitional//EN\">\r\n";
-      $encoded .= "<html>\r\n";
-      $encoded .= "<body>\r\n";
-      $encoded .= $html . "\r\n";
-      $encoded .= "</body>\r\n";
-      $encoded .= "</html>\r\n\r\n";
+      $message .= '--' . $boundary2 . $this->line;
+      $message .= 'Content-Type: text/html;' . $this->line . "\tcharset=\"UTF-8\"" . $this->line;
+      $message .= 'Content-Transfer-Encoding: quoted-printable' . $this->line . $this->line;
+      $encoded  = '<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.0 Transitional//EN">' . $this->line;
+      $encoded .= '<html>' . $this->line;
+      $encoded .= '<body>' . $this->line;
+      $encoded .= $html . $this->line;
+      $encoded .= '</body>' . $this->line;
+      $encoded .= '</html>' . $this->line . $this->line;
       $message .= quoted_printable_encode($encoded);
-      $message .= "--".$boundary2."--\r\n\r\n";
+      $message .= '--' . $boundary2 . '--' . $this->line . $this->line;
 
       if(is_array($attachments)) {
         foreach($attachments AS $file_url) {
@@ -116,10 +121,10 @@ License: CC BY-NC-SA
             $file_type = $this->find_mime(pathinfo($file_url, PATHINFO_EXTENSION));
 
             // ATTACHMENT
-            $message .= "--".$boundary1."\r\n";
-            $message .= "Content-Type: ".$file_type.";\r\n      name=\"$file_name\"\r\n";
-            $message .= "Content-Transfer-Encoding: base64\r\n";
-            $message .= "Content-Disposition: attachment;\r\n      filename=\"$file_name\"\r\n\r\n";
+            $message .= '--' . $boundary1 . $this->line;
+            $message .= 'Content-Type: ' . $file_type . ';' . $this->line . "\tname=\"" . $file_name . '"' . $this->line;
+            $message .= 'Content-Transfer-Encoding: base64' . $this->line;
+            $message .= 'Content-Disposition: attachment;' . $this->line . "\tfilename=\"" . $file_name . '"' . $this->line . $this->line;
 
             $fp = fopen($file_url, 'r');
             do {
@@ -129,28 +134,27 @@ License: CC BY-NC-SA
             }
             while (true);
             $content_encode = chunk_split(base64_encode($content));
-            $message .= $content_encode."\r\n\r\n";
+            $message .= $content_encode . $this->line . $this->line;
             $content = '';
             unset($content);
-
           }
         }
       }
-      $message .= "--".$boundary1."--\r\n\r\n";
+      $message .= '--' . $boundary1 . '--' . $this->line . $this->line;
 
       if(is_array($headers)) {
-        $headers = implode("\r\n", $headers) . "\r\n";
+        $headers = implode($this->line, $headers) . $this->line;
       }
       else {
-        $headers = trim($headers) . "\r\n";
+        $headers = trim($headers) . $this->line;
       }
-      $headers .= "MIME-Version: 1.0\r\n";
-      $headers .= "Content-Type: multipart/mixed;\r\n      boundary=\"$boundary1\"\r\n";
+      $headers .= 'MIME-Version: 1.0' . $this->line;
+      $headers .= 'Content-Type: multipart/mixed;' . $this->line . "\tboundary=\"" . $boundary1 . '"' . $this->line;
 
-      if($this->mode == "smtp" || $this->mode == "mx")
+      if($this->mode == 'smtp' || $this->mode == 'mx')
        return $this->sokmail($to, $subject, $message, $headers);
       else {
-        if($this->safe && mail($to, $subject, $message, $headers)) return true;
+        if($safe && mail($to, $subject, $message, $headers)) return true;
         return false;
       }
     }
@@ -158,8 +162,8 @@ License: CC BY-NC-SA
     // send mail directly to destination MX server
     private function sokmail($to, $subject, $message, $headers) {
       // get server based on mode
-      if($this->mode == "mx") {
-        list($user, $domain) = explode("@", $to);
+      if($this->mode == 'mx') {
+        list($user, $domain) = explode('@', $to);
         $mxips = $this->get_rand_mx_ip($domain);
         $server = $mxips['A'][0];
       }
@@ -169,56 +173,55 @@ License: CC BY-NC-SA
       // open socket
       $socket = @fsockopen($server, $this->port, $errno, $errstr, $this->time);
       if(empty($socket)) {
-        $this->log["ERROR"] = "Couldn't connect to server.";
-        $this->log["ERRNO"] = "101";
+        $this->log['ERROR'] = "Couldn't connect to server.";
+        $this->log['ERRNO'] = '101';
         return false;
       }
-      if($this->parse_response($socket, 220, "SOCKET") != 220) { fclose($socket); return false; }
+      if($this->parse_response($socket, 220, 'SOCKET') != 220) { fclose($socket); return false; }
 
       // say HELO to our little friend
-      fputs($socket, "EHLO " . $this->host . $this->line);
-      if($this->parse_response($socket, 250, "HELO") != 250) { fclose($socket); return false; }
+      fputs($socket, 'EHLO ' . $this->host . $this->line);
+      if($this->parse_response($socket, 250, 'HELO') != 250) { fclose($socket); return false; }
 
       // if SMTP
-      if($this->mode == "smtp" && !empty($this->smtp_username) && !empty($this->smtp_password) ) {
+      if($this->mode == 'smtp' && !empty($this->smtp_username) && !empty($this->smtp_password) ) {
         // start login
-        fputs($socket, "AUTH LOGIN" . $this->line);
-        if($this->parse_response($socket, 334, "AUTH LOGIN") != 334) { fclose($socket); return false; }
+        fputs($socket, 'AUTH LOGIN' . $this->line);
+        if($this->parse_response($socket, 334, 'AUTH LOGIN') != 334) { fclose($socket); return false; }
 
         fputs($socket, base64_encode($this->smtp_username) . $this->line);
-        if($this->parse_response($socket, 334, "USERNAME") != 334) { fclose($socket); return false; }
+        if($this->parse_response($socket, 334, 'USERNAME') != 334) { fclose($socket); return false; }
 
         fputs($socket, base64_encode($this->smtp_password) . $this->line);
-        if($this->parse_response($socket, 235, "PASSWORD") != 235) { fclose($socket); return false; }
+        if($this->parse_response($socket, 235, 'PASSWORD') != 235) { fclose($socket); return false; }
       }
 
       // email from
-      fputs($socket, "MAIL FROM: <" . $this->from . ">" . $this->line);
-      if($this->parse_response($socket, 250, "MAIL FROM") != 250) { fclose($socket); return false; }
+      fputs($socket, 'MAIL FROM: <' . $this->from . '>' . $this->line);
+      if($this->parse_response($socket, 250, 'MAIL FROM') != 250) { fclose($socket); return false; }
 
       // email to
-      fputs($socket, "RCPT TO: <" . $to . ">" . $this->line);
-      if($this->parse_response($socket, 250, "RCPT TO") != 250) { fclose($socket); return false; }
+      fputs($socket, 'RCPT TO: <' . $to . '>' . $this->line);
+      if($this->parse_response($socket, 250, 'RCPT TO') != 250) { fclose($socket); return false; }
 
       // check for test mode
       if($this->test != true) {
-
         // send data start command
-        fputs($socket, "DATA" . $this->line);
-        if($this->parse_response($socket, 354, "DATA") != 354) { fclose($socket); return false; }
+        fputs($socket, 'DATA' . $this->line);
+        if($this->parse_response($socket, 354, 'DATA') != 354) { fclose($socket); return false; }
 
         // make the deposit :)
-        fputs($socket, "Subject: " . $subject . $this->line);
-        fputs($socket, "To: " . $to . $this->line);
+        fputs($socket, 'Subject: ' . $subject . $this->line);
+        fputs($socket, 'To: ' . $to . $this->line);
         fputs($socket, $headers . $this->line);
         fputs($socket, $message . $this->line);
-        fputs($socket, "." . $this->line); // this line sends a dot to mark the end of message
-        if($this->parse_response($socket, 250, ".") != 250) { fclose($socket); return false; }
+        fputs($socket, '.' . $this->line); // this line sends a dot to mark the end of message
+        if($this->parse_response($socket, 250, '.') != 250) { fclose($socket); return false; }
       }
 
       // say goodbye
-      fputs($socket,"QUIT" . $this->line);
-      $this->parse_response($socket, 221, "QUIT");
+      fputs($socket,'QUIT' . $this->line);
+      $this->parse_response($socket, 221, 'QUIT');
       fclose($socket);
 
       return true;
@@ -227,11 +230,11 @@ License: CC BY-NC-SA
     // parse server responces for above function
     private function parse_response($socket, $expected, $cmd) {
       $response = '';
-      $this->log[$cmd] = "";
+      $this->log[$cmd] = '';
       while (substr($response, 3, 1) != ' ') {
         if(!($response = fgets($socket, 256))) {
-          $this->log["ERROR"] = "Couldn't get mail server response codes.";
-          $this->log["ERRNO"] = "102";
+          $this->log['ERROR'] = "Couldn't get mail server response codes.";
+          $this->log['ERRNO'] = '102';
         }
         else $this->log[$cmd] .= $response;
         // for security we break the loop after 10 cause this should not happen ever
@@ -241,14 +244,14 @@ License: CC BY-NC-SA
 
       // shows an error if expected code not received
       if(substr($response, 0, 3) != $expected) {
-        $this->log["ERROR"] = "Ran into problems sending Mail. Received: " . substr($response, 0, 3) . ".. but expected: " . $expected;
-        $this->log["ERRNO"] = substr($response, 0, 3);
+        $this->log['ERROR'] = 'Ran into problems sending Mail. Received: ' . substr($response, 0, 3) . '.. but expected: ' . $expected;
+        $this->log['ERRNO'] = substr($response, 0, 3);
       }
 
       // access denied..quit
       if(substr($response, 0, 3) == 451) {
-        $this->log["ERROR"] = "Server declined access. Quitting.";
-        $this->log["ERRNO"] = "451";
+        $this->log['ERROR'] = 'Server declined access. Quitting.';
+        $this->log['ERRNO'] = '451';
       }
 
       return substr($response, 0, 3);
@@ -302,6 +305,114 @@ License: CC BY-NC-SA
       return $r;
     }
 
+    # transform HTML in plain text
+    private function make_text_plain($source) {
+      // change new lines to \n only
+      $source = str_replace("\r", "", $source);
+      
+      $message = $source;
+      
+      // pre strip replace
+      $search  = Array(
+                       "/\r/", "/\n/", "/\t/",                                // take out newlines and tabs (\n replaced with space)
+                       "/[ ]{2,}/",                                           // runs of space
+                       "/<br\s*\/?>/i",                                       // HTML line breaks
+                       "/<hr[^>]*>/i",                                        // <hr>
+                       "/(<table[^>]*>|<\/table>)/i",                         // <table> and </table>
+                       "/(<tr[^>]*>|<\/tr>)/i",                               // <tr> and </tr>
+                       "/<td[^>]*>(.*?)<\/td>/i",                             // <td> and </td>
+                       "/<th[^>]*>(.*?)<\/th>/ie",                            // <th> and </th>
+                       "/<h[123456][^>]*>(.*?)<\/h[123456]>/ie",              // uppercase headers
+                       "/&(nbsp|#160);/i",                                    // Non-breaking space
+                       "/&(quot|rdquo|ldquo|#8220|#8221|#147|#148);/i",       // Double quotes
+                       "/&(apos|rsquo|lsquo|#8216|#8217);/i",                 // Single quotes
+                       "/&gt;/i",                                             // Greater-than
+                       "/&lt;/i",                                             // Less-than
+                       "/&(amp|#38);/i",                                      // Ampersand
+                       "/&(copy|#169);/i",                                    // Copyright
+                       "/&(trade|#8482|#153);/i",                             // Trademark
+                       "/&(reg|#174);/i",                                     // Registered
+                       "/&(mdash|#151|#8212);/i",                             // mdash
+                       "/&(ndash|minus|#8211|#8722);/i",                      // ndash
+                       "/&(bull|#149|#8226);/i",                              // Bullet
+                       "/&(pound|#163);/i",                                   // Pound sign
+                       "/£/i",                                                // Pound sign
+                       "/&(euro|#8364);/i",                                   // Euro sign
+                       "/&#?[a-z0-9]+;/i",                                    // Unknown/unhandled entities
+                       );
+      
+      $replace = Array(
+                       "", " ", " ",                                          // take out newlines
+                       " ",                                                   // runs of space
+                       "\n",                                                  // HTML line breaks
+                       "\n----------------------------------\n",              // <hr>
+                       "\n\n",                                                // <table> and </table>
+                       "\n",                                                  // <tr> and </tr>
+                       "\t\t\\1\n",                                           // <td> and </td>
+                       "strtoupper(\"\t\t\\1\n\")",                           // <th> and </th>
+                       "strtoupper(\"\n\n\\1\n\n\")",                         // uppercase headers
+                       " ",                                                   // Non-breaking space
+                       '"',                                                   // Double quotes
+                       "'",                                                   // Single quotes
+                       ">",                                                   // Greater-than
+                       "<",                                                   // Less-than
+                       "&",                                                   // Ampersand
+                       "(c)",                                                 // Copyright
+                       "(tm)",                                                // Trademark
+                       "(R)",                                                 // Registered
+                       "--",                                                  // mdash
+                       "-",                                                   // ndash
+                       "*",                                                   // Bullet
+                       "GBP",                                                 // Pound sign
+                       "GBP",                                                 // Pound sign
+                       "EUR",                                                 // Euro sign.
+                       "",                                                    // Unknown/unhandled entities
+                                   );
+      $message = preg_replace($search, $replace, $message);
+      $message = html_entity_decode($message, ENT_QUOTES, 'UTF-8');
+      
+      
+      // strip tags
+      $message = strip_tags($message);
+      
+      
+      // post strip replace
+      $search  = Array(
+                       "/\n\s+\n/", "/[\n]{3,}/", "/^[ ]+/mi", "/[ ]{2,}/i",  // fix multiple spaces and newlines
+                       "/\t/",                                                // fix tabs
+                       "/[ ]{5}/",                                            // fix 5 spaces
+                       );
+      
+      $replace = Array(
+                       "\n\n", "\n\n", "", "",                                // fix multiple spaces and newlines
+                       "  ",                                                  // fix tabs
+                       "    ",                                                // fix 5 spaces
+                       );
+      $message = preg_replace($search, $replace, $message);
+      
+      
+      // find and add links at the end
+      preg_match_all("/(<a.*?href=)(\"|'| )(.*?)(\"|'| )(.*?\>)(.*?)(<\/\s*a\s*>)/i", $source, $array);
+      if(count($array[3]) > 0) $message .= "\n\nLinks:\n";
+      $array[3] = array_unique($array[3]);
+      foreach($array[3] AS $link) {
+        $message .= "<" . $link . ">\n";
+      }
+      
+      
+      // wrap and trim
+      $message = wordwrap($message);
+      $message = trim(rtrim($message));
+      
+      
+      // change new lines back to \r\n only
+      $message = str_replace("\n", "\r\n", $message);
+      
+      
+      // return nice plain text
+      return $message;
+    }
+    
     // get mime type for extension
     private function find_mime($ext) {
       // create mimetypes array
@@ -319,141 +430,141 @@ License: CC BY-NC-SA
     // known mime types cause PHP might not have support
     private function mime_array() {
       return array(
-        "ez" => "application/andrew-inset",
-        "hqx" => "application/mac-binhex40",
-        "cpt" => "application/mac-compactpro",
-        "doc" => "application/msword",
-        "bin" => "application/octet-stream",
-        "dms" => "application/octet-stream",
-        "lha" => "application/octet-stream",
-        "lzh" => "application/octet-stream",
-        "exe" => "application/octet-stream",
-        "class" => "application/octet-stream",
-        "so" => "application/octet-stream",
-        "dll" => "application/octet-stream",
-        "oda" => "application/oda",
-        "pdf" => "application/pdf",
-        "ai" => "application/postscript",
-        "eps" => "application/postscript",
-        "ps" => "application/postscript",
-        "smi" => "application/smil",
-        "smil" => "application/smil",
-        "wbxml" => "application/vnd.wap.wbxml",
-        "wmlc" => "application/vnd.wap.wmlc",
-        "wmlsc" => "application/vnd.wap.wmlscriptc",
-        "bcpio" => "application/x-bcpio",
-        "vcd" => "application/x-cdlink",
-        "pgn" => "application/x-chess-pgn",
-        "cpio" => "application/x-cpio",
-        "csh" => "application/x-csh",
-        "dcr" => "application/x-director",
-        "dir" => "application/x-director",
-        "dxr" => "application/x-director",
-        "dvi" => "application/x-dvi",
-        "spl" => "application/x-futuresplash",
-        "gtar" => "application/x-gtar",
-        "hdf" => "application/x-hdf",
-        "js" => "application/x-javascript",
-        "skp" => "application/x-koan",
-        "skd" => "application/x-koan",
-        "skt" => "application/x-koan",
-        "skm" => "application/x-koan",
-        "latex" => "application/x-latex",
-        "nc" => "application/x-netcdf",
-        "cdf" => "application/x-netcdf",
-        "sh" => "application/x-sh",
-        "shar" => "application/x-shar",
-        "swf" => "application/x-shockwave-flash",
-        "sit" => "application/x-stuffit",
-        "sv4cpio" => "application/x-sv4cpio",
-        "sv4crc" => "application/x-sv4crc",
-        "tar" => "application/x-tar",
-        "tcl" => "application/x-tcl",
-        "tex" => "application/x-tex",
-        "texinfo" => "application/x-texinfo",
-        "texi" => "application/x-texinfo",
-        "t" => "application/x-troff",
-        "tr" => "application/x-troff",
-        "roff" => "application/x-troff",
-        "man" => "application/x-troff-man",
-        "me" => "application/x-troff-me",
-        "ms" => "application/x-troff-ms",
-        "ustar" => "application/x-ustar",
-        "src" => "application/x-wais-source",
-        "xhtml" => "application/xhtml+xml",
-        "xht" => "application/xhtml+xml",
-        "zip" => "application/zip",
-        "au" => "audio/basic",
-        "snd" => "audio/basic",
-        "mid" => "audio/midi",
-        "midi" => "audio/midi",
-        "kar" => "audio/midi",
-        "mpga" => "audio/mpeg",
-        "mp2" => "audio/mpeg",
-        "mp3" => "audio/mpeg",
-        "aif" => "audio/x-aiff",
-        "aiff" => "audio/x-aiff",
-        "aifc" => "audio/x-aiff",
-        "m3u" => "audio/x-mpegurl",
-        "ram" => "audio/x-pn-realaudio",
-        "rm" => "audio/x-pn-realaudio",
-        "rpm" => "audio/x-pn-realaudio-plugin",
-        "ra" => "audio/x-realaudio",
-        "wav" => "audio/x-wav",
-        "pdb" => "chemical/x-pdb",
-        "xyz" => "chemical/x-xyz",
-        "bmp" => "image/bmp",
-        "gif" => "image/gif",
-        "ief" => "image/ief",
-        "jpeg" => "image/jpeg",
-        "jpg" => "image/jpeg",
-        "jpe" => "image/jpeg",
-        "png" => "image/png",
-        "tiff" => "image/tiff",
-        "tif" => "image/tif",
-        "djvu" => "image/vnd.djvu",
-        "djv" => "image/vnd.djvu",
-        "wbmp" => "image/vnd.wap.wbmp",
-        "ras" => "image/x-cmu-raster",
-        "pnm" => "image/x-portable-anymap",
-        "pbm" => "image/x-portable-bitmap",
-        "pgm" => "image/x-portable-graymap",
-        "ppm" => "image/x-portable-pixmap",
-        "rgb" => "image/x-rgb",
-        "xbm" => "image/x-xbitmap",
-        "xpm" => "image/x-xpixmap",
-        "xwd" => "image/x-windowdump",
-        "igs" => "model/iges",
-        "iges" => "model/iges",
-        "msh" => "model/mesh",
-        "mesh" => "model/mesh",
-        "silo" => "model/mesh",
-        "wrl" => "model/vrml",
-        "vrml" => "model/vrml",
-        "css" => "text/css",
-        "html" => "text/html",
-        "htm" => "text/html",
-        "asc" => "text/plain",
-        "txt" => "text/plain",
-        "rtx" => "text/richtext",
-        "rtf" => "text/rtf",
-        "sgml" => "text/sgml",
-        "sgm" => "text/sgml",
-        "tsv" => "text/tab-seperated-values",
-        "wml" => "text/vnd.wap.wml",
-        "wmls" => "text/vnd.wap.wmlscript",
-        "etx" => "text/x-setext",
-        "xml" => "text/xml",
-        "xsl" => "text/xml",
-        "mpeg" => "video/mpeg",
-        "mpg" => "video/mpeg",
-        "mpe" => "video/mpeg",
-        "qt" => "video/quicktime",
-        "mov" => "video/quicktime",
-        "mxu" => "video/vnd.mpegurl",
-        "avi" => "video/x-msvideo",
-        "movie" => "video/x-sgi-movie",
-        "ice" => "x-conference-xcooltalk"
+        'ez' => 'application/andrew-inset',
+        'hqx' => 'application/mac-binhex40',
+        'cpt' => 'application/mac-compactpro',
+        'doc' => 'application/msword',
+        'bin' => 'application/octet-stream',
+        'dms' => 'application/octet-stream',
+        'lha' => 'application/octet-stream',
+        'lzh' => 'application/octet-stream',
+        'exe' => 'application/octet-stream',
+        'class' => 'application/octet-stream',
+        'so' => 'application/octet-stream',
+        'dll' => 'application/octet-stream',
+        'oda' => 'application/oda',
+        'pdf' => 'application/pdf',
+        'ai' => 'application/postscript',
+        'eps' => 'application/postscript',
+        'ps' => 'application/postscript',
+        'smi' => 'application/smil',
+        'smil' => 'application/smil',
+        'wbxml' => 'application/vnd.wap.wbxml',
+        'wmlc' => 'application/vnd.wap.wmlc',
+        'wmlsc' => 'application/vnd.wap.wmlscriptc',
+        'bcpio' => 'application/x-bcpio',
+        'vcd' => 'application/x-cdlink',
+        'pgn' => 'application/x-chess-pgn',
+        'cpio' => 'application/x-cpio',
+        'csh' => 'application/x-csh',
+        'dcr' => 'application/x-director',
+        'dir' => 'application/x-director',
+        'dxr' => 'application/x-director',
+        'dvi' => 'application/x-dvi',
+        'spl' => 'application/x-futuresplash',
+        'gtar' => 'application/x-gtar',
+        'hdf' => 'application/x-hdf',
+        'js' => 'application/x-javascript',
+        'skp' => 'application/x-koan',
+        'skd' => 'application/x-koan',
+        'skt' => 'application/x-koan',
+        'skm' => 'application/x-koan',
+        'latex' => 'application/x-latex',
+        'nc' => 'application/x-netcdf',
+        'cdf' => 'application/x-netcdf',
+        'sh' => 'application/x-sh',
+        'shar' => 'application/x-shar',
+        'swf' => 'application/x-shockwave-flash',
+        'sit' => 'application/x-stuffit',
+        'sv4cpio' => 'application/x-sv4cpio',
+        'sv4crc' => 'application/x-sv4crc',
+        'tar' => 'application/x-tar',
+        'tcl' => 'application/x-tcl',
+        'tex' => 'application/x-tex',
+        'texinfo' => 'application/x-texinfo',
+        'texi' => 'application/x-texinfo',
+        't' => 'application/x-troff',
+        'tr' => 'application/x-troff',
+        'roff' => 'application/x-troff',
+        'man' => 'application/x-troff-man',
+        'me' => 'application/x-troff-me',
+        'ms' => 'application/x-troff-ms',
+        'ustar' => 'application/x-ustar',
+        'src' => 'application/x-wais-source',
+        'xhtml' => 'application/xhtml+xml',
+        'xht' => 'application/xhtml+xml',
+        'zip' => 'application/zip',
+        'au' => 'audio/basic',
+        'snd' => 'audio/basic',
+        'mid' => 'audio/midi',
+        'midi' => 'audio/midi',
+        'kar' => 'audio/midi',
+        'mpga' => 'audio/mpeg',
+        'mp2' => 'audio/mpeg',
+        'mp3' => 'audio/mpeg',
+        'aif' => 'audio/x-aiff',
+        'aiff' => 'audio/x-aiff',
+        'aifc' => 'audio/x-aiff',
+        'm3u' => 'audio/x-mpegurl',
+        'ram' => 'audio/x-pn-realaudio',
+        'rm' => 'audio/x-pn-realaudio',
+        'rpm' => 'audio/x-pn-realaudio-plugin',
+        'ra' => 'audio/x-realaudio',
+        'wav' => 'audio/x-wav',
+        'pdb' => 'chemical/x-pdb',
+        'xyz' => 'chemical/x-xyz',
+        'bmp' => 'image/bmp',
+        'gif' => 'image/gif',
+        'ief' => 'image/ief',
+        'jpeg' => 'image/jpeg',
+        'jpg' => 'image/jpeg',
+        'jpe' => 'image/jpeg',
+        'png' => 'image/png',
+        'tiff' => 'image/tiff',
+        'tif' => 'image/tif',
+        'djvu' => 'image/vnd.djvu',
+        'djv' => 'image/vnd.djvu',
+        'wbmp' => 'image/vnd.wap.wbmp',
+        'ras' => 'image/x-cmu-raster',
+        'pnm' => 'image/x-portable-anymap',
+        'pbm' => 'image/x-portable-bitmap',
+        'pgm' => 'image/x-portable-graymap',
+        'ppm' => 'image/x-portable-pixmap',
+        'rgb' => 'image/x-rgb',
+        'xbm' => 'image/x-xbitmap',
+        'xpm' => 'image/x-xpixmap',
+        'xwd' => 'image/x-windowdump',
+        'igs' => 'model/iges',
+        'iges' => 'model/iges',
+        'msh' => 'model/mesh',
+        'mesh' => 'model/mesh',
+        'silo' => 'model/mesh',
+        'wrl' => 'model/vrml',
+        'vrml' => 'model/vrml',
+        'css' => 'text/css',
+        'html' => 'text/html',
+        'htm' => 'text/html',
+        'asc' => 'text/plain',
+        'txt' => 'text/plain',
+        'rtx' => 'text/richtext',
+        'rtf' => 'text/rtf',
+        'sgml' => 'text/sgml',
+        'sgm' => 'text/sgml',
+        'tsv' => 'text/tab-seperated-values',
+        'wml' => 'text/vnd.wap.wml',
+        'wmls' => 'text/vnd.wap.wmlscript',
+        'etx' => 'text/x-setext',
+        'xml' => 'text/xml',
+        'xsl' => 'text/xml',
+        'mpeg' => 'video/mpeg',
+        'mpg' => 'video/mpeg',
+        'mpe' => 'video/mpeg',
+        'qt' => 'video/quicktime',
+        'mov' => 'video/quicktime',
+        'mxu' => 'video/vnd.mpegurl',
+        'avi' => 'video/x-msvideo',
+        'movie' => 'video/x-sgi-movie',
+        'ice' => 'x-conference-xcooltalk'
       );
     }
   }
@@ -470,7 +581,7 @@ License: CC BY-NC-SA
     $i=-1;
     foreach ($output as $line) {
       $i++;
-      if (preg_match("/^$hostname\tMX preference = ([0-9]+), mail exchanger = (.+)$/i", $line, $parts)) {
+      if (preg_match('/^$hostname\tMX preference = ([0-9]+), mail exchanger = (.+)$/i', $line, $parts)) {
         $mxweight[$i] = trim($parts[1]);
         $mxhosts[$i] = trim($parts[2]);
       }
