@@ -2,7 +2,7 @@
 /*
 
 Name: Xmail Professional
-Version: 2.2 Excalibur
+Version: 2.3 Excalibur
 Description: Send email the right way so it does not get flagged as SPAM. Most servers use a diffrent IP address to send email from then the IP of your domain and thus your emails get into SPAM folders or not att all in some cases of Yahoo! and MSN. This will send emails from your domain IP address. It might take 1-2 seconds more to send it but it is worth it.
 Author: Vlad-Marian MARIAN
 Author URI: http://uk.linkedin.com/in/transilvlad/
@@ -38,6 +38,7 @@ License: CC BY-NC-SA
     // CONFIG GENERAL
     private $tpl = "";
     private $mode = "mail";
+    private $safe = true;
 
     function setTPL($value) { if($value != "") $this->tpl = $value; }
     function setMODE($value) { if($value != "") $this->mode = $value; }
@@ -65,6 +66,7 @@ License: CC BY-NC-SA
     function setPort($value) { if($value != "") $this->port = $value; }
     function setTime($value) { if($value != "") $this->time = $value; }
     function setTest($value) { if($value != "") $this->test = $value; }
+    function setSafe($value) { if($value == True) $this->safe = true; else $this->safe = false; }
 
     // MAIN FUNCTION
     function mail($to, $subject, $msg, $headers, $attachments = NULL) {
@@ -142,7 +144,7 @@ License: CC BY-NC-SA
       if($this->mode == "smtp" || $this->mode == "mx")
        return $this->sokmail($to, $subject, $message, $headers);
       else {
-        if(mail($to, $subject, $message, $headers)) return true;
+        if($this->safe && mail($to, $subject, $message, $headers)) return true;
         return false;
       }
     }
@@ -151,7 +153,7 @@ License: CC BY-NC-SA
     private function sokmail($to, $subject, $message, $headers) {
       // get server based on mode
       if($this->mode == "mx") {
-        list($user, $domain) = split("@",$to);
+        list($user, $domain) = explode("@", $to);
         $mxips = $this->get_rand_mx_ip($domain);
         $server = $mxips['A'][0];
       }
@@ -160,7 +162,11 @@ License: CC BY-NC-SA
 
       // open socket
       $socket = @fsockopen($server, $this->port, $errno, $errstr, $this->time);
-      if(empty($socket)) { return false; }
+      if(empty($socket)) {
+        $this->log["ERROR"] = "Couldn't connect to server.";
+        $this->log["ERRNO"] = "101";
+        return false;
+      }
       if($this->parse_response($socket, 220, "SOCKET") != 220) { fclose($socket); return false; }
 
       // say HELO to our little friend
@@ -217,7 +223,10 @@ License: CC BY-NC-SA
       $response = '';
       $this->log[$cmd] = "";
       while (substr($response, 3, 1) != ' ') {
-        if(!($response = fgets($socket, 256))) $this->log["ERROR RESPONSE"] = "Couldn't get mail server response codes.";
+        if(!($response = fgets($socket, 256))) {
+          $this->log["ERROR"] = "Couldn't get mail server response codes.";
+          $this->log["ERRNO"] = "102";
+        }
         else $this->log[$cmd] .= $response;
         // for security we break the loop after 10 cause this should not happen ever
         $i++;
@@ -225,10 +234,16 @@ License: CC BY-NC-SA
       }
 
       // shows an error if expected code not received
-      if(substr($response, 0, 3) != $expected) $this->log["ERROR CODES"] = "Ran into problems sending Mail. Received: " . substr($response, 0, 3) . ".. but expected: " . $expected;
+      if(substr($response, 0, 3) != $expected) {
+        $this->log["ERROR"] = "Ran into problems sending Mail. Received: " . substr($response, 0, 3) . ".. but expected: " . $expected;
+        $this->log["ERRNO"] = substr($response, 0, 3);
+      }
 
       // access denied..quit
-      if(substr($response, 0, 3) == 451) $this->log["ERROR QUIT"] = "Server declined access. Quitting.";
+      if(substr($response, 0, 3) == 451) {
+        $this->log["ERROR"] = "Server declined access. Quitting.";
+        $this->log["ERRNO"] = "451";
+      }
 
       return substr($response, 0, 3);
     }
@@ -470,10 +485,11 @@ License: CC BY-NC-SA
   // Handler function
   function xmail($to, $subject, $message, $headers="", $attachments=""){
     $xmail = new Xmail();
-    $xmail->setTest(true); // ( true / false ) test without sending email see output
+    $xmail->setTest(false); // ( true / false ) test without sending email see output
+    $xmail->setSafe(true); // ( true / false ) pass the email to PHP's mail() if fail to deliver
 
     $xmail->setTPL('xmail.html'); // define a file to be used as a template if you want, use {MESSAGE} where the message should be inserted in the template
-    $xmail->setMODE('mail'); // default is mail; options: mail,smtp,mx
+    $xmail->setMODE('mx'); // default is mail; options: mail,smtp,mx
 
     // MX setup if in 'mx' mode
     $xmail->setFrom('john.doe@example.com');
@@ -499,5 +515,3 @@ License: CC BY-NC-SA
     // return debug log
     return $xmail->log;
   }
-
-?>
