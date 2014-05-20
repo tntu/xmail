@@ -138,6 +138,12 @@ License: CC BY-NC-SA
       }
       $message .= "--".$boundary1."--\r\n\r\n";
 
+      if(is_array($headers)) {
+        $headers = implode("\r\n", $headers) . "\r\n";
+      }
+      else {
+        $headers = trim($headers) . "\r\n";
+      }
       $headers .= "MIME-Version: 1.0\r\n";
       $headers .= "Content-Type: multipart/mixed;\r\n      boundary=\"$boundary1\"\r\n";
 
