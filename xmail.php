@@ -600,7 +600,7 @@ License: CC BY-NC-SA
 
 
   // Handler function
-  function xmail($to, $subject, $message, $headers="", $attachments=""){
+  function xmail($to, $subject, $message, $headers="", $attachments="") {
     $xmail = new Xmail();
     $xmail->setTest(false); // ( true / false ) test without sending email see output
     $xmail->setSafe(true); // ( true / false ) pass the email to PHP's mail() if fail to deliver
