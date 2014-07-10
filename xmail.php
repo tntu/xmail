@@ -321,8 +321,6 @@ License: CC BY-NC-SA
                        "/(<table[^>]*>|<\/table>)/i",                         // <table> and </table>
                        "/(<tr[^>]*>|<\/tr>)/i",                               // <tr> and </tr>
                        "/<td[^>]*>(.*?)<\/td>/i",                             // <td> and </td>
-                       "/<th[^>]*>(.*?)<\/th>/ie",                            // <th> and </th>
-                       "/<h[123456][^>]*>(.*?)<\/h[123456]>/ie",              // uppercase headers
                        "/&(nbsp|#160);/i",                                    // Non-breaking space
                        "/&(quot|rdquo|ldquo|#8220|#8221|#147|#148);/i",       // Double quotes
                        "/&(apos|rsquo|lsquo|#8216|#8217);/i",                 // Single quotes
@@ -349,8 +347,6 @@ License: CC BY-NC-SA
                        "\n\n",                                                // <table> and </table>
                        "\n",                                                  // <tr> and </tr>
                        "\t\t\\1\n",                                           // <td> and </td>
-                       "strtoupper(\"\t\t\\1\n\")",                           // <th> and </th>
-                       "strtoupper(\"\n\n\\1\n\n\")",                         // uppercase headers
                        " ",                                                   // Non-breaking space
                        '"',                                                   // Double quotes
                        "'",                                                   // Single quotes
@@ -369,6 +365,17 @@ License: CC BY-NC-SA
                        "",                                                    // Unknown/unhandled entities
                                    );
       $message = preg_replace($search, $replace, $message);
+      
+      // <th> and </th>
+      $message = preg_replace_callback("/<th[^>]*>(.*?)<\/th>/i", function($matches) {
+        return "\t\t" . strtoupper($matches[1]) . "\t\t";
+      }, $message);
+      
+      // uppercase headers
+      $message = preg_replace_callback("/(<h([1-6])>(.*?)<\/h\1>)/i", function($matches) {
+        return "\n\n" . strtoupper($matches[2]) . "\n\n";
+      }, $message);
+      
       $message = html_entity_decode($message, ENT_QUOTES, 'UTF-8');
       
       
