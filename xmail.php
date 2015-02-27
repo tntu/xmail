@@ -87,7 +87,8 @@ $xmail->mail($to, $subject, $message, $headers, $attachments);
    * @version 20150219
    * @since 20060628
    *
-   * @author Vlad Marian
+   * @author "Vlad Marian" <transilvlad@gmail.com>
+   * @contributor Cristian Ciocău <cciocau@gmail.com>
    * @copyright Vlad Marian 2015
    * @license http://www.gnu.org/licenses/agpl.txt GPL v3
    * @link http://transilvlad.com Author Website
@@ -97,7 +98,7 @@ $xmail->mail($to, $subject, $message, $headers, $attachments);
    *
    * @see mail()
    */
-  class Xmail {
+  final class Xmail {
     /**
      * Xmail::NAME
      *
@@ -337,6 +338,9 @@ $xmail->mail($to, $subject, $message, $headers, $attachments);
       // Cleanup
       $message = str_replace(Array("\'", '\"'), Array("'", '"'), $message);
 
+      // Ensure line endings are proper
+      $message = str_replace(Array("\r\n", "\r", "\n"), Array("\n", '', '<br/>'), $message);
+
       // Generating boundaries
       $boundary1 = 'xmail' . Xmail::VERSION . '-' . md5(uniqid(rand()));
       $boundary2 = 'xmail' . Xmail::VERSION . '-' . md5(uniqid(rand()));
@@ -355,7 +359,7 @@ $xmail->mail($to, $subject, $message, $headers, $attachments);
       $content .= 'Content-Transfer-Encoding: base64' . $this->line . $this->line;
 
       // Text part content
-      $content .= chunk_split(base64_encode(trim(strip_tags($message)))) . $this->line;
+      $content .= chunk_split(base64_encode(trim($this->makePlain($message)))) . $this->line;
 
       // HTML part headers
       $content .= '--' . $boundary2 . $this->line;
@@ -393,7 +397,7 @@ $xmail->mail($to, $subject, $message, $headers, $attachments);
             $content .= ' name="' . $file_name . '"' . $this->line;
             $content .= 'Content-Transfer-Encoding: base64' . $this->line;
             $content .= 'Content-Disposition: attachment;' . $this->line;
-            $content .= ' filename="' . $file_name . '"' . $this->line;
+            $content .= ' filename="' . $file_name . '"' . $this->line . $this->line;
 
             // Attachment read
             $payload = '';
@@ -609,6 +613,130 @@ $xmail->mail($to, $subject, $message, $headers, $attachments);
         shuffle($ips[$key]['AAAA']);
       }
       return Array('mx' => $mxs, 'ip' => $ips);
+    }
+
+
+    /**
+     * Xmail::makePlain()
+     *
+     * Transform HTML in plain text.
+     *
+     * @syntax Xmail::makePlain($source);
+     * @param  string  $source  HTML content.
+     * @return string  Plain text content.
+     */
+    private function makePlain($source) {
+      // change new lines to \n only
+      $source = str_replace("\r", "", $source);
+      
+      $message = $source;
+      
+      // pre strip replace
+      $search  = Array(
+                       "/\r/", "/\n/", "/\t/",                                // take out newlines and tabs (\n replaced with space)
+                       "/[ ]{2,}/",                                           // runs of space
+                       "/<br\s*\/?>/i",                                       // HTML line breaks
+                       "/<hr[^>]*>/i",                                        // <hr>
+                       "/(<table[^>]*>|<\/table>)/i",                         // <table> and </table>
+                       "/(<tr[^>]*>|<\/tr>)/i",                               // <tr> and </tr>
+                       "/<td[^>]*>(.*?)<\/td>/i",                             // <td> and </td>
+                       "/&(nbsp|#160);/i",                                    // Non-breaking space
+                       "/&(quot|rdquo|ldquo|#8220|#8221|#147|#148);/i",       // Double quotes
+                       "/&(apos|rsquo|lsquo|#8216|#8217);/i",                 // Single quotes
+                       "/&gt;/i",                                             // Greater-than
+                       "/&lt;/i",                                             // Less-than
+                       "/&(amp|#38);/i",                                      // Ampersand
+                       "/&(copy|#169);/i",                                    // Copyright
+                       "/&(trade|#8482|#153);/i",                             // Trademark
+                       "/&(reg|#174);/i",                                     // Registered
+                       "/&(mdash|#151|#8212);/i",                             // mdash
+                       "/&(ndash|minus|#8211|#8722);/i",                      // ndash
+                       "/&(bull|#149|#8226);/i",                              // Bullet
+                       "/&(pound|#163);/i",                                   // Pound sign
+                       "/£/i",                                                // Pound sign
+                       "/&(euro|#8364);/i",                                   // Euro sign
+                       "/&#?[a-z0-9]+;/i",                                    // Unknown/unhandled entities
+                       );
+      
+      $replace = Array(
+                       "", " ", " ",                                          // take out newlines
+                       " ",                                                   // runs of space
+                       "\n",                                                  // HTML line breaks
+                       "\n----------------------------------\n",              // <hr>
+                       "\n\n",                                                // <table> and </table>
+                       "\n",                                                  // <tr> and </tr>
+                       "\t\t\\1\n",                                           // <td> and </td>
+                       " ",                                                   // Non-breaking space
+                       '"',                                                   // Double quotes
+                       "'",                                                   // Single quotes
+                       ">",                                                   // Greater-than
+                       "<",                                                   // Less-than
+                       "&",                                                   // Ampersand
+                       "(c)",                                                 // Copyright
+                       "(tm)",                                                // Trademark
+                       "(R)",                                                 // Registered
+                       "--",                                                  // mdash
+                       "-",                                                   // ndash
+                       "*",                                                   // Bullet
+                       "GBP",                                                 // Pound sign
+                       "GBP",                                                 // Pound sign
+                       "EUR",                                                 // Euro sign.
+                       "",                                                    // Unknown/unhandled entities
+                                   );
+      $message = preg_replace($search, $replace, $message);
+      
+      // <th> and </th>
+      $message = preg_replace_callback("/<th[^>]*>(.*?)<\/th>/i", function($matches) {
+        return "\t\t" . strtoupper($matches[1]) . "\t\t";
+      }, $message);
+      
+      // uppercase headers
+      $message = preg_replace_callback("/(<h([1-6])>(.*?)<\/h\1>)/i", function($matches) {
+        return "\n\n" . strtoupper($matches[2]) . "\n\n";
+      }, $message);
+      
+      $message = html_entity_decode($message, ENT_QUOTES, 'UTF-8');
+      
+      
+      // strip tags
+      $message = strip_tags($message);
+      
+      
+      // post strip replace
+      $search  = Array(
+                       "/\n\s+\n/", "/[\n]{3,}/", "/^[ ]+/mi", "/[ ]{2,}/i",  // fix multiple spaces and newlines
+                       "/\t/",                                                // fix tabs
+                       "/[ ]{5}/",                                            // fix 5 spaces
+                       );
+      
+      $replace = Array(
+                       "\n\n", "\n\n", "", "",                                // fix multiple spaces and newlines
+                       "  ",                                                  // fix tabs
+                       "    ",                                                // fix 5 spaces
+                       );
+      $message = preg_replace($search, $replace, $message);
+      
+      
+      // find and add links at the end
+      preg_match_all("/(<a.*?href=)(\"|'| )(.*?)(\"|'| )(.*?\>)(.*?)(<\/\s*a\s*>)/i", $source, $array);
+      if(count($array[3]) > 0) $message .= "\n\nLinks:\n";
+      $array[3] = array_unique($array[3]);
+      foreach($array[3] AS $link) {
+        $message .= "<" . $link . ">\n";
+      }
+      
+      
+      // wrap and trim
+      $message = wordwrap($message);
+      $message = trim(rtrim($message));
+      
+      
+      // change new lines back to \r\n only
+      $message = str_replace("\n", "\r\n", $message);
+      
+      
+      // return nice plain text
+      return $message;
     }
 
 
@@ -845,7 +973,7 @@ $xmail->mail($to, $subject, $message, $headers, $attachments);
     $xmail->setTest(False); // (Boolean: default False) Test without sending the data
 
     // Delivery mode
-    $xmail->setMode('mx'); // (mail, smtp, mx: default mail) Choose mode of delivery.
+    $xmail->setMode('mail'); // (mail, smtp, mx: default mail) Choose mode of delivery.
 
     // MX setup if in 'mx' mode
     $xmail->setFrom($sender_address . '@' . $sender_domain);
@@ -887,7 +1015,7 @@ $xmail->mail($to, $subject, $message, $headers, $attachments);
                   'jane.doe@example.com',
 
                   // Subject
-                  'Xmmail delivery test',
+                  'Xmail delivery test',
                   
                   // Message
                   'Dear reader,<br/><br/>' .
@@ -900,6 +1028,7 @@ $xmail->mail($to, $subject, $message, $headers, $attachments);
                   '',
 
                   // Attachments
-                  Array())
+                  Array()
+                  )
             );
   }
