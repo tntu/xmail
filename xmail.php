@@ -374,7 +374,7 @@ $xmail->mail($to, $subject, $message, $headers, $attachments);
       $html .= $message . $this->line;
       $html .= '</body>' . $this->line;
       $html .= '</html>' . $this->line;
-      $content .= chunk_split(base64_encode($html));
+      $content .= chunk_split(base64_encode($html)) . $this->line;
 
       // Content parts end
       $content .= '--' . $boundary2 . '--' . $this->line . $this->line;
