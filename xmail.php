@@ -591,27 +591,31 @@ $xmail->mail($to, $subject, $message, $headers, $attachments);
 
       if(!$hosts) {
         $hosts = Array($domain);
-        $getmxrr = Array(0);
+        $weight = Array(0);
       }
 
       $ips = Array();
       $mxs = Array();
       foreach($hosts AS $key => $val) {
-        if(empty($mxs[$getmxrr[$key]]))
-         $mxs[$getmxrr[$key]] = Array();
+        if(empty($mxs[$weight[$key]])) {
+          $mxs[$weight[$key]] = Array();
+        }
 
-        $mxs[$getmxrr[$key]][] = $val;
+        $mxs[$weight[$key]][] = $val;
         $ips[$val]['A'] = dns_get_record($val, DNS_A);
         $ips[$val]['AAAA'] = dns_get_record($val, DNS_AAAA);
       }
       ksort($mxs);
+
       foreach($mxs AS $key => $val) {
         shuffle($mxs[$key]);
       }
+
       foreach($ips AS $key => $val) {
         shuffle($ips[$key]['A']);
         shuffle($ips[$key]['AAAA']);
       }
+
       return Array('mx' => $mxs, 'ip' => $ips);
     }
 
@@ -950,85 +954,4 @@ $xmail->mail($to, $subject, $message, $headers, $attachments);
       }
       return ($i != -1);
     }
-  }
-
-
-  /**
-   * xmail()
-   *
-   * Example handler function for Xmail class.
-   *
-   * @ignore
-   */
-  function xmail($to, $subject, $message, $headers = '', $attachments = '') {
-    // Sender
-    $sender_name    = 'John Doe';
-    $sender_address = 'john.doe';
-    $sender_domain  = 'example.com';
-
-    // Instanciate
-    $xmail = new Xmail(True);
-
-    // Test mode
-    $xmail->setTest(False); // (Boolean: default False) Test without sending the data
-
-    // Delivery mode
-    $xmail->setMode('mail'); // (mail, smtp, mx: default mail) Choose mode of delivery.
-
-    // MX setup if in 'mx' mode
-    $xmail->setFrom($sender_address . '@' . $sender_domain);
-    $xmail->setHost($sender_domain);
-    $xmail->setTime(5);
-
-    // SMTP SETUP if in 'smtp' mode
-    $xmail->setSmtpHost($sender_domain);
-    $xmail->setSmtpPort(25);
-    $xmail->setSmtpUser('username');
-    $xmail->setSmtpPass('password');
-
-    // Generic From header
-    if(empty($headers))
-     $headers = 'From: "' . $sender_name . '" <' . $sender_address . '@' . $sender_domain . ">\r\n";
-
-    // Compose
-    $xmail->compose($message, $headers, $attachments);
-
-    // Send
-    $xmail->mail($to, $subject, $message, $headers, $attachments);
-
-    return $xmail;
-  }
-
-
-  /**
-   * xmail_test()
-   *
-   * Test handler function for example handler function.
-   *
-   * @ignore
-   */
-  function xmail_test() {
-    header('Content-type: text/plain');
-    print_r(
-            xmail(
-                  // To
-                  'jane.doe@example.com',
-
-                  // Subject
-                  'Xmail delivery test',
-                  
-                  // Message
-                  'Dear reader,<br/><br/>' .
-                  'This is a test message sent by Xmail ' . Xmail::VERSION . ' ' . Xmail::NAME . '.<br/>' .
-                  'A developer is running email delivery tests.<br/>' .
-                  'Please excuse the disturbance and ignore this and future such emails.<br/><br/>' .
-                  'Thank you.',
-
-                  // Headers
-                  '',
-
-                  // Attachments
-                  Array()
-                  )
-            );
   }
