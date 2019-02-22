@@ -1,7 +1,7 @@
 {
-    "name": "tntu/xmail-php",
+    "name": "transilvlad/xmail-php",
     "description": "Email delivery class that provides the basic requirements in order to send RFC compliant emails.",
-    "license": "GPL v3",
+    "license": "GPLv3",
     "authors": [
         {
             "name": "Vlad Marian",
@@ -12,6 +12,9 @@
         "php": ">=5.3.0"
         },
     "autoload": {
-        "classmap": ["xmail.php"]
+        "classmap": [
+            "XmailHandler.php",
+            "Xmail.php"
+        ]
     }
 }
