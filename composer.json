@@ -1,7 +1,7 @@
 {
     "name": "transilvlad/xmail-php",
     "description": "Email delivery class that provides the basic requirements in order to send RFC compliant emails.",
-    "license": "GPL-2.0-only	",
+    "license": "GPL-2.0-only",
     "authors": [
         {
             "name": "Vlad Marian",
